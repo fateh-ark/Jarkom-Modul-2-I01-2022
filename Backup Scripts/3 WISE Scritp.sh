@@ -11,4 +11,15 @@ wait
 cat /root/bind_local.conf > /etc/bind/named.conf.local
 mkdir /etc/bind/wise
 cp /etc/bind/db.local /etc/bind/wise/wise.i01.com
+cat /root/bind_wisei01com.conf > /etc/bind/wise/wise.i01.com
+
+# Initialize Reverse DNS
+cp /etc/bind/db.local /etc/bind/wise/3.36.10.in-addr.arpa
+cat /root/bind_reversedns.conf > /etc/bind/wise/3.36.10.in-addr.arpa
+
+# Initialize Subdomains Transfer
+cat /root/name_option.conf > /etc/bind/named.conf.options
+cat /root/name_local.conf > /etc/bind/named.conf.local 
+
+# Restart DNS
 service bind9 restart

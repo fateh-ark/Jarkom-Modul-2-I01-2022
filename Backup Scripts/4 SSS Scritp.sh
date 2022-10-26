@@ -1,2 +1,0 @@
-# Add Ostania IP for internet connectivity
-echo nameserver 192.168.122.1 > /etc/resolv.conf
