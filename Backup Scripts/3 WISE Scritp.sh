@@ -10,7 +10,7 @@ wait
 # Initialize DNS
 cat /root/bind_local.conf > /etc/bind/named.conf.local
 mkdir /etc/bind/wise
-cp /etc/bind/db.local /etc/bind/wise/wise.i01.com
+#
 cat /root/bind_wisei01com.conf > /etc/bind/wise/wise.i01.com
 
 # Initialize Reverse DNS
