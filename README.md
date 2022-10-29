@@ -18,13 +18,31 @@ Group Members:
 - [Jarkom-Modul-1-I02-2022](#jarkom-modul-1-i02-2022)
   - [Important Links](#important-links)
   - [Table Of Contents](#table-of-contents)
+  - [Distribution of Work](#distribution-of-work)
   - [Answers](#answers)
     - [Question 1](#question-1)
+      - [Network Config](#network-config)
+      - [Additional Setups](#additional-setups)
     - [Question 2](#question-2)
+      - [WISE's Script.sh](#wises-scriptsh)
+    - [bind_local.conf](#bind_localconf)
+    - [bind_wisei01com.conf](#bind_wisei01comconf)
     - [Question 3](#question-3)
     - [Question 4](#question-4)
+      - [bind_local.conf](#bind_localconf-1)
+      - [Script.sh](#scriptsh)
+    - [bind_reversedns.conf](#bind_reversednsconf)
     - [Question 5](#question-5)
+      - [bind_local.conf in WISE](#bind_localconf-in-wise)
+      - [Script.sh in Berlint](#scriptsh-in-berlint)
+      - [bind_local_slave.conf](#bind_local_slaveconf)
+      - [Result](#result)
     - [Question 6](#question-6)
+      - [bind_wisei01com.conf in WISE](#bind_wisei01comconf-in-wise)
+      - [Script.sh in Berlint](#scriptsh-in-berlint-1)
+      - [name_option_slave.conf](#name_option_slaveconf)
+      - [name_local_slave.conf](#name_local_slaveconf)
+      - [bind_operation.conf](#bind_operationconf)
     - [Question 7](#question-7)
     - [Question 8](#question-8)
     - [Question 9](#question-9)
@@ -37,6 +55,21 @@ Group Members:
     - [Question 16](#question-16)
     - [Question 17](#question-17)
   - [Revisions & Dificulties](#revisions--dificulties)
+
+## Distribution of Work
+
+The following is how work are distributed amoung team member on this module:
+
++ Adam Satria Adidarma
+  + Contribute in answering question 5 and beyond
+  + Contribute on making the report on Question 4 - 7 but can't commit due to dificulties
++ Muhammad Fatih Akbar
+  + Repo Initialization
+  + Screenshotter
+  + Report Formatter & Cleaner
++ Rangga Aulia Pradana
+  + Contribute in answering question 1 - 4
+  + Contribute on making the report on Question 1 - 3
 
 ## Answers
 
@@ -203,17 +236,196 @@ dont forget to restart dns with `service bind9 restart`.
 
 > Also create a **reverse domain** for the main domain
 
+#### bind_local.conf
+
+Append the following to the file in WISE.
+
+```conf
+zone "3.36.10.in-addr.arpa" {
+	type master;
+	file "/etc/bind/wise/3.36.10.in-addr.arpa";
+};
+```
+
+#### Script.sh
+
+Append the following to the file in WISE.
+
+```sh
+# Initialize Reverse DNS
+cp /etc/bind/db.local /etc/bind/wise/3.36.10.in-addr.arpa
+cat /root/bind_reversedns.conf > /etc/bind/wise/3.36.10.in-addr.arpa
+```
+
+### bind_reversedns.conf
+
+create the file with the following lines
+
+```bind
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     wise.i01.com. root.wise.i01.com. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+3.36.10.in-addr.arpa.     IN      NS      wise.i01.com. ;Question 4
+3                         IN      PTR     wise.i01.com. ; Question 4
+```
+
+dont forget to restart dns with `service bind9 restart`.
+
+![error](https://i.imgur.com/Cvhmykp.png)
+
 ### Question 5
 
 > To stay in touch if the WISE server has some problem, make **Berlint also as the DNS Slave for the main domain**
+
+#### bind_local.conf in WISE
+
+add the following lines into the zone "wise.i01.com"
+
+```conf
+notify yes;
+    also-notify { 10.36.3.2; };
+    allow-transfer { 10.36.3.2; };
+```
+
+dont forget to restart dns with `service bind9 restart`.
+
+#### Script.sh in Berlint
+
+append this lines to the file
+
+```sh
+# Install Bind9 for DNS capabilities
+apt-get update
+wait
+apt-get install bind9 -y
+wait
+
+# Initialize DNS
+cat /root/bind_local_slave.conf > /etc/bind/named.conf.local
+```
+
+#### bind_local_slave.conf
+
+```conf
+zone "wise.i01.com" {
+	type slave;
+    masters { 10.36.2.2; };
+	file "/var/lib/bind/wise.i01.com";
+};
+```
+
+dont forget to restart dns with `service bind9 restart`.
+
+#### Result
+
+Stopping Master DNS
+
+![Stop Service](https://i.imgur.com/Y0X4FIV.png)
+
+Check if pinging wise.i01.com still work
+
+![Result](https://i.imgur.com/lxXWqDU.png)
 
 ### Question 6
 
 > Because there is a lot of information from Handler, make a special subdomain for operations **operation.wise.yyy.com** with alias **www.operation.wise.yyy.com** delegated from WISE to Berlint with IP leads to Eden on the folder operation
 
+#### bind_wisei01com.conf in WISE
+
+append the following lines to the file
+
+```bind
+ns1                 IN      A       10.36.3.2 ; Question 6
+operation           IN      NS       ns1 ; Question 6
+```
+
+dont forget to restart dns with `service bind9 restart`.
+
+#### Script.sh in Berlint
+
+append the following lines
+
+```sh
+# Initialize Subdomains Transfer
+cat /root/name_option_slave.conf > /etc/bind/named.conf.options
+cat /root/name_local_slave.conf > /etc/bind/named.conf.local 
+mkdir /etc/bind/delegation
+cp /etc/bind/db.local /etc/bind/delegation/operation.wise.i01.com
+cat /root/bind_operation.conf > /etc/bind/delegation/operation.wise.i01.com
+```
+
+#### name_option_slave.conf
+
+create the file and append the following lines inside
+
+```conf
+options {
+        directory "/var/cache/bind";
+
+        dnssec-validation auto;
+
+        auth-nxdomain no;    # conform to RFC1035
+        listen-on-v6 { any; };
+        allow-query { any; };
+};
+```
+
+#### name_local_slave.conf
+
+create the file and put the following lines inside
+
+```conf
+zone "operation.wise.i01.com" {
+        type master;
+        file "/etc/bind/delegation/operation.wise.i01.com";
+};
+```
+
+#### bind_operation.conf
+
+put the following lines insise
+
+```bind
+; BIND data file for local loopback interface
+;
+$TTL    604800
+@       IN      SOA     operation.wise.i01.com. root.operation.wise.i01.com. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@           IN      NS      operation.wise.i01.com.
+@           IN      A       10.36.3.3
+www         IN      CNAME   operation.wise.i01.com.
+```
+dont forget to restart dns with `service bind9 restart`.
+
+![result](https://i.imgur.com/lEbApZW.png)
+
 ### Question 7
 
 > For more specific information about Operation Strix, create a subdomain via Berlint with access **strix.operation.wise.yyy.com** with alias **www.strix.operation.wise.yyy.com** that leads to Eden
+
+append the following lines to **bind_operation.conf** in Berlint.
+
+```bind
+strix       IN      A       10.36.3.3
+www.strix   IN      CNAME   strix.operation.wise.i01.com
+```
+
+dont forget to restart dns with `service bind9 restart`.
+
+![result](https://i.imgur.com/dUPOnw9.png)
+
 
 ### Question 8
 
